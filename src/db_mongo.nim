@@ -40,13 +40,16 @@ type
 type
   TBsonKind* = enum
     bkObj
+    bkArr
     bkInt32
     bkInt64
     bkStr
   PBsonCtorNode* = ref object
     case kind: TBsonKind
     of bkObj:
-      fields: seq[tuple[k: string, v: PBsonCtorNode]]
+      fieldsVal: seq[tuple[k: string, v: PBsonCtorNode]]
+    of bkArr:
+      arrVal: seq[PBsonCtorNode]
     of bkInt32:
       int32Val: int32
     of bkInt64:
@@ -55,7 +58,7 @@ type
       strVal: string
   PBsonNode* = ref object
     case kind*: TBsonKind
-    of bkObj:
+    of bkObj, bkArr:
       nil
     of bkInt32:
       int32Val*: int32
@@ -73,6 +76,8 @@ proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind): PBsonNode =
   case kind:
   of mongo.bkOBJECT:
     return PBsonNode(kind: bkObj)
+  of mongo.bkARRAY:
+    return PBsonNode(kind: bkArr)
   of mongo.bkINT:
     return PBsonNode(kind: bkInt32, int32Val: iter.intVal)
   of mongo.bkLONG:
@@ -86,7 +91,7 @@ iterator subItems*(bson: PBson): tuple[k: string, v: PBsonNode] =
   var
     subIter: TIter
   assert bson.iter != nil
-  assert bson.iter[].kind in {mongo.bkOBJECT}
+  assert bson.iter[].kind in {mongo.bkOBJECT, mongo.bkARRAY}
   mongo.subiterator(bson.iter[], subIter)
   while (let kind = subIter.next(); kind != bkEOO):
     let
@@ -104,6 +109,9 @@ iterator items*(bson: var PBson): tuple[k: string, v: PBsonNode] {.inline.} =
       of mongo.bkOBJECT:
         bson.iter[] = iter
         yield (key, PBsonNode(kind: bkObj))
+      of mongo.bkARRAY:
+        bson.iter[] = iter
+        yield (key, PBsonNode(kind: bkArr))
       else:
         yield (key, newBsonNode(iter, kind))
   finally:
@@ -114,9 +122,14 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
   case v.kind:
   of bkObj:
     mongo.addStartObject(bson.handle, k)
-    for x in v.fields:
+    for x in v.fieldsVal:
       bson.add(x.k, x.v)
     mongo.addFinishObject(bson.handle)
+  of bkArr:
+    mongo.addStartArray(bson.handle, k)
+    for i, x in v.arrVal:
+      bson.add($i, x)
+    mongo.addFinishArray(bson.handle)
   of bkInt32:
     bson.handle.add(k, v.int32Val)
     discard
@@ -129,7 +142,7 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
 
 proc newBson*(
       doc: openarray[tuple[k: string, v: PBsonCtorNode]]): PBson =
-  new(result, proc(o: ref TBson) {.nimcall.} = assert o.iter == nil)
+  new(result, proc(o: PBson) {.nimcall.} = assert o.iter == nil)
   mongo.init(result.handle)
   result.iter = cast[ptr TIter](alloc(TIter.sizeof))
   for x in doc:
@@ -150,7 +163,14 @@ proc `%`*(fields: openarray[tuple[k: string, v: PBsonCtorNode]]): PBsonCtorNode 
     fieldSeq = newSeq[fields[0].type](fields.len)
   for i, x in fields:
     fieldSeq[i] = x
-  PBsonCtorNode(kind: bkObj, fields: fieldSeq)
+  PBsonCtorNode(kind: bkObj, fieldsVal: fieldSeq)
+
+proc `%`*(arr: openarray[PBsonCtorNode]): PBsonCtorNode =
+  var
+    arrSeq = newSeq[arr[0].type](arr.len)
+  for i, x in arr:
+    arrSeq[i] = x
+  PBsonCtorNode(kind: bkArr, arrVal: arrSeq)
 
 proc dbError*(db: TDbConn, msg: string) {.noreturn.} = 
   ## raises an EDb exception with message `msg`.
