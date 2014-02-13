@@ -142,7 +142,10 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
 
 proc newBson*(
       doc: openarray[tuple[k: string, v: PBsonCtorNode]]): PBson =
-  new(result, proc(o: PBson) {.nimcall.} = assert o.iter == nil)
+  new(result, proc(o: PBson) {.nimcall.} =
+    assert o.iter == nil
+    mongo.destroy(o.handle)
+  )
   mongo.init(result.handle)
   result.iter = cast[ptr TIter](alloc(TIter.sizeof))
   for x in doc:
