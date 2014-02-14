@@ -552,12 +552,12 @@ type
     UPDATE_MULTI = 0x00000002, 
     UPDATE_BASIC = 0x00000004
   TCursorOpts* = enum 
-    TAILABLE = (1 shl 1),     ## Create a tailable cursor. 
-    SLAVE_OK = (1 shl 2),     ## Allow queries on a non-primary node. 
-    NO_CURSOR_TIMEOUT = (1 shl 4),  ## Disable cursor timeouts. 
-    AWAIT_DATA = (1 shl 5),   ## Momentarily block for more data. 
-    EXHAUST = (1 shl 6),      ## Stream in multiple 'more' packages. 
-    PARTIAL = (1 shl 7)       ## Allow reads even if a shard is down. 
+    coTailable = 1 shl 1,     ## Create a tailable cursor.
+    coSlaveOk = 1 shl 2,      ## Allow queries on a non-primary node.
+    coNoTimeout = 1 shl 4,    ## Disable cursor timeouts.
+    coAwaitData = 1 shl 5,    ## Momentarily block for more data.
+    coExhaust = 1 shl 6,      ## Stream in multiple 'more' packages.
+    coPartial = 1 shl 7       ## Allow reads even if a shard is down.
   Toperations* = enum 
     OP_MSG = 1000, OP_UPDATE = 2001, OP_INSERT = 2002, OP_QUERY = 2004, 
     OP_GET_MORE = 2005, OP_DELETE = 2006, OP_KILL_CURSORS = 2007

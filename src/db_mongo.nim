@@ -28,6 +28,7 @@
 ##    close(conn)
 
 import mongo, oids, json
+export mongo.TCursorOpts
 
 type
   EDb* = object of EIO ## exception that is raised if a database error occurs
@@ -245,11 +246,24 @@ proc insert*(db: PDbConn, namespace: string, data: PBson) {.
   ## insert `data` in `namespace`.
   mongo.insert(db.handle, namespace, data.handle[], nil)
 
-iterator find*(db: PDbConn, namespace: string,
-               query, fields: PBson = newBson()): PBson {.tags: [FReadDB].} =
-  ## yields the `fields` of any document that suffices `query`.
-  var cursor = mongo.find(
-    db.handle, namespace, query.handle[], fields.handle[], 0i32, 0i32, 0i32)
+iterator find*(
+      db: PDbConn,
+      namespace: string,
+      query, fields: PBson = newBson(),
+      limit, skip = 0.Natural,
+      cursorOpts: set[TCursorOpts] = {coTailable}): # Work around ICE.
+        PBson {.tags: [FReadDB].} =
+  ## yields the `fields` of any document in `namespace` that suffices `query`.
+  ## `limit` specifies the maximum amount of documents to yield.
+  ## `skip` specifies how many documents should be skipped.
+  ## `cursorOpts` specifies cursor options.
+  var
+    opts: int32
+  for x in cursorOpts:
+    opts = opts or x.int32
+  var
+    cursor = mongo.find(db.handle, namespace, query.handle[],
+      fields.handle[], limit.int32, skip.int32, opts)
   if cursor != nil:
     while mongo.next(cursor[]) == mongo.OK:
       yield newBson(mongo.bson(cursor[]))

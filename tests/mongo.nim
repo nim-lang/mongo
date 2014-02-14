@@ -61,6 +61,8 @@ db.insert("test.nim_mongo_test", bson)
 for x in db.find("test.nim_mongo_test"):
   print x
 
+assert toSeq(db.find("test.nim_mongo_test", limit = 1)).len <= 1
+
 for x in db.find("test.nim_mongo_test",
     %%{"int32": %1i32}, %%{"int32": %1i32}):
   for y in x:
