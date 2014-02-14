@@ -251,7 +251,7 @@ iterator find*(
       namespace: string,
       query, fields: PBson = newBson(),
       limit, skip = 0.Natural,
-      cursorOpts: set[TCursorOpts] = {coTailable}): # Work around ICE.
+      cursorOpts: set[TCursorOpts] = {}):
         PBson {.tags: [FReadDB].} =
   ## yields the `fields` of any document in `namespace` that suffices `query`.
   ## `limit` specifies the maximum amount of documents to yield.
