@@ -1,20 +1,20 @@
-import db_mongo
+import db_mongo, sequtils, times, oids
 
 var
-  bson = newBson({
-    "int32": %1'i32,
-    "int64": %2'i64,
+  bson = %%{
+    "int32": %1i32,
+    "int64": %2i64,
     "obj": %{
-      "field1": %6'i32,
-      "field2": %7'i64,
+      "field1": %6i32,
+      "field2": %7i64,
       "field3": %"field3val"
     },
     "arr": %[
-      %12'i32,
-      %13'i64,
+      %12i32,
+      %13i64,
       %"arr0str"
     ]
-  })
+  }
 for x in bson:
   case x.k:
   of "int32":
@@ -53,3 +53,34 @@ for x in bson:
         assert false
   else:
     assert false
+
+var
+  db = db_mongo.open()
+
+db.insert("test.nim_mongo_test", bson)
+for x in db.find("test.nim_mongo_test"):
+  print x
+
+for x in db.find("test.nim_mongo_test",
+    %%{"int32": %1i32}, %%{"int32": %1i32}):
+  for y in x:
+    case y.k:
+    of "_id":
+      discard
+    of "int32":
+      assert y.v.int32Val == 1
+
+for x in db.find("test.nim_mongo_test", %%{"int32": %1i32}):
+  for y in x:
+    case y.k:
+    of "_id", "obj", "arr":
+      discard
+    of "int32":
+      assert y.v.int32Val == 1
+    of "int64":
+      assert y.v.int64Val == 2
+    else:
+      assert false
+
+assert toSeq(db.find("test.nim_mongo_test",
+  %%{"int32": %2i32}, %%{"int32": %1i32})).len == 0
