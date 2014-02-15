@@ -1,6 +1,7 @@
 import db_mongo, sequtils, times, oids
 
 var
+  arr2 = ["o", "p", "q"]
   bson = %%{
     "int32": %1i32,
     "int64": %2i64,
@@ -9,11 +10,12 @@ var
       "field2": %7i64,
       "field3": %"field3val"
     },
-    "arr": %[
+    "arr1": %[
       %12i32,
       %13i64,
-      %"arr0str"
-    ]
+      %"arr1str"
+    ],
+    "arr2": %arr2
   }
 for x in bson:
   case x.k:
@@ -37,7 +39,7 @@ for x in bson:
         assert y.v.strVal == "field3val"
       else:
         assert false
-  of "arr":
+  of "arr1":
     for y in bson.subItems:
       case y.k:
       of "0":
@@ -48,7 +50,21 @@ for x in bson:
         assert y.v.int64Val == 13
       of "2":
         assert y.v.kind == bkStr
-        assert y.v.strVal == "arr0str"
+        assert y.v.strVal == "arr1str"
+      else:
+        assert false
+  of "arr2":
+    for y in bson.subItems:
+      case y.k:
+      of "0":
+        assert y.v.kind == bkStr
+        assert y.v.strVal == "o"
+      of "1":
+        assert y.v.kind == bkStr
+        assert y.v.strVal == "p"
+      of "2":
+        assert y.v.kind == bkStr
+        assert y.v.strVal == "q"
       else:
         assert false
   else:

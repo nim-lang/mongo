@@ -27,7 +27,7 @@
 ##    delete(conn, "test.test", id)
 ##    close(conn)
 
-import mongo, oids, json
+import mongo, oids
 export mongo.TCursorOpts
 
 type
@@ -49,6 +49,7 @@ type
     bkInt64
     bkStr
     bkOid
+  TBsonBasicTypes* = int32|int64|string|TOid
   PBsonCtorNode* = ref object
     case kind: TBsonKind
     of bkObj:
@@ -211,6 +212,9 @@ proc `%`*(arr: openarray[PBsonCtorNode]): PBsonCtorNode =
   for i, x in arr:
     arrSeq[i] = x
   PBsonCtorNode(kind: bkArr, arrVal: arrSeq)
+
+proc `%`*(arr: openarray[TBsonBasicTypes]): PBsonCtorNode =
+  `%`(map(arr, proc(x: arr[0].type): PBsonCtorNode = %x))
 
 proc dbError*(db: PDbConn, msg: string) {.noreturn.} =
   ## raises an EDb exception with message `msg`.
