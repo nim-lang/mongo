@@ -44,16 +44,26 @@ type
 type
   TBsonKind* = enum
     bkNone
+    bkNull
     bkObj
     bkArr
     bkInt32
     bkInt64
     bkStr
     bkOid
+    bkFloat64
+    bkBool
+    bkRegex
+    bkJsCode
+    bkTimestamp
+    bkUtcDate
+    bkBinData
+    bkMinKey
+    bkMaxKey
   TBsonBasicTypes* = int32|int64|string|TOid
   PBsonCtorNode* = ref object
     case kind: TBsonKind
-    of bkNone:
+    of bkNone, bkNull:
       nil
     of bkObj:
       fieldsVal: seq[tuple[k: string, v: PBsonCtorNode]]
@@ -67,9 +77,25 @@ type
       strVal: string
     of bkOid:
       oidVal: TOid
+    of bkFloat64:
+      float64val: float64
+    of bkBool:
+      boolVal: bool
+    of bkRegex:
+      regexVal: tuple[pattern, opts: string]
+    of bkJsCode:
+      jsCodeVal: string
+    of bkTimestamp:
+      timestampVal: mongo.TTimestamp
+    of bkUtcDate:
+      utcDateVal: int64
+    of bkMinKey, bkMaxKey:
+      nil
+    of bkBinData:
+      binDataVal: string
   PBsonNode* = ref object
     case kind*: TBsonKind
-    of bkNone:
+    of bkNone, bkNull:
       nil
     of bkObj, bkArr:
       bson: ref TBson
@@ -82,6 +108,22 @@ type
       strVal*: string
     of bkOid:
       oidVal*: TOid
+    of bkFloat64:
+      float64val*: float64
+    of bkBool:
+      boolVal*: bool
+    of bkRegex:
+      regexVal*: tuple[pattern, opts: string]
+    of bkJsCode:
+      jsCodeVal*: string
+    of bkTimestamp:
+      timestampVal*: TTimestamp
+    of bkUtcDate:
+      utcDateVal*: int64
+    of bkBinData:
+      binDataVal*: string
+    of bkMinKey, bkMaxKey:
+      nil
   TBson = object
     handle: ptr mongo.TBson
     iter: ptr TIter
@@ -89,7 +131,12 @@ type
 
 proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
       PBsonNode =
-  result = case kind:
+  case kind:
+  of mongo.bkEOO:
+    assert false
+    PBsonNode(kind: bkNull)
+  of mongo.bkNULL:
+    PBsonNode(kind: bkNull)
   of mongo.bkOBJECT:
     PBsonNode(kind: bkObj, bson: bson, iter: iter)
   of mongo.bkARRAY:
@@ -102,14 +149,34 @@ proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
     PBsonNode(kind: bkStr, strVal: $iter.strVal)
   of mongo.bkOID:
     PBsonNode(kind: bkOid, oidVal: iter.oidVal[])
-  else:
-    assert false # TODO: Cover every case.
-    PBsonNode(kind: bkObj)
+  of mongo.bkDOUBLE:
+    PBsonNode(kind: bkFloat64, float64val: iter.floatVal)
+  of mongo.bkBOOL:
+    PBsonNode(kind: bkBOOL, boolVal: iter.boolVal != 0)
+  of mongo.bkREGEX:
+    PBsonNode(kind: bkRegex, regexVal: ($iter.regex, $iter.regexOpts))
+  of mongo.bkCODE:
+    PBsonNode(kind: bkJsCode, jsCodeVal: $iter.code)
+  of mongo.bkTIMESTAMP:
+    PBsonNode(kind: bkTimestamp, timestampVal: iter.timestamp)
+  of mongo.bkDATE:
+    PBsonNode(kind: bkutcdate, utcdateval: iter.date)
+  of mongo.bkCODEWSCOPE:
+    # TODO: 
+    assert false, "TODO"
+    PBsonNode(kind: bkNull)
+  of mongo.bkBINDATA:
+    PBsonNode(kind: bkBinData, binDataVal: $iter.binData)
+  of mongo.bkDBREF, mongo.bkUNDEFINED, mongo.bkSYMBOL:
+    assert false, "Deprecated symbols"
+    PBsonNode(kind: bkNone)
 
 proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
   case v.kind:
   of bkNone:
     discard
+  of bkNull:
+    mongo.addNull(bson.handle[], k)
   of bkObj:
     mongo.addStartObject(bson.handle[], k)
     for x in v.fieldsVal:
@@ -121,13 +188,29 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
       bson.add($i, x)
     mongo.addFinishArray(bson.handle[])
   of bkInt32: # TODO: Condense the following cases.
-    add(bson.handle[], k, v.int32Val)
+    mongo.add(bson.handle[], k, v.int32Val)
   of bkInt64:
-    add(bson.handle[], k, v.int64Val)
+    mongo.add(bson.handle[], k, v.int64Val)
   of bkStr:
-    add(bson.handle[], k, v.strVal)
+    mongo.add(bson.handle[], k, v.strVal)
   of bkOid:
-    add(bson.handle[], k, v.oidVal)
+    mongo.add(bson.handle[], k, v.oidVal)
+  of bkBinData:
+    mongo.addBinary(bson.handle[], k, v.binDataVal)
+  of bkMinKey, bkMaxKey:
+    nil
+  of bkUtcDate:
+    mongo.addDate(bson.handle[], k, v.utcDateVal)
+  of bkTimestamp:
+    mongo.addTimestamp(bson.handle[], k, v.timestampVal)
+  of bkJsCode:
+    mongo.addCode(bson.handle[], k, v.jsCodeVal)
+  of bkRegex:
+    mongo.addRegex(bson.handle[], k, v.regexVal.pattern, v.regexVal.opts)
+  of bkBool:
+    mongo.addBool(bson.handle[], k, v.boolVal.TBsonBool)
+  of bkFloat64:
+    mongo.add(bson.handle[], k, v.float64val)
 
 proc newBson*(handle: ptr mongo.TBson): PBson =
   PBson(handle: handle, iter: nil)
@@ -147,8 +230,7 @@ proc newBson*(
     result.add(x.k, x.v)
   mongo.finish(result.handle[])
 
-proc `%%`*(
-      doc: openarray[tuple[k: string, v: PBsonCtorNode]] = []): PBson =
+proc `%%`*(doc: openarray[tuple[k: string, v: PBsonCtorNode]] = []): PBson =
   newBson(doc)
 
 proc setIter*(o: PBson, iter: var TIter) =
