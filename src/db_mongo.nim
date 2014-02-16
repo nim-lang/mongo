@@ -257,6 +257,8 @@ iterator subItems*(bson: PBson): tuple[k: string, v: PBsonNode] =
       key = $subIter.key
     yield (key, newBsonNode(subIter, kind, bson = nil))
 
+proc `[]`*(node: PBsonNode, k: string, T: seq[TBsonBasicTypes]): T =
+  nil
 proc `[]`*(node: PBsonNode, k: string): PBsonNode =
   assert node.kind in {bkArr, bkObj}
   case node.kind:
