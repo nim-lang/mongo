@@ -162,7 +162,6 @@ proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
   of mongo.bkDATE:
     PBsonNode(kind: bkutcdate, utcdateval: iter.date)
   of mongo.bkCODEWSCOPE:
-    # TODO: 
     assert false, "TODO"
     PBsonNode(kind: bkNull)
   of mongo.bkBINDATA:
