@@ -17,6 +17,22 @@ var
     ],
     "arr2": %arr2
   }
+
+assert bson["int32"].int32Val == 1
+assert bson["int64"].int64Val == 2
+
+assert bson["obj"]["field1"].int32Val == 6
+assert bson["obj"]["field2"].int64Val == 7
+assert bson["obj"]["field3"].strVal == "field3val"
+
+assert bson["arr1"]["0"].int32Val == 12
+assert bson["arr1"]["1"].int64Val == 13
+assert bson["arr1"]["2"].strVal == "arr1str"
+
+assert bson["arr2"]["0"].strVal == "o"
+assert bson["arr2"]["1"].strVal == "p"
+assert bson["arr2"]["2"].strVal == "q"
+
 for x in bson:
   case x.k:
   of "int32":

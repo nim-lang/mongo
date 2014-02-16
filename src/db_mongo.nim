@@ -43,6 +43,7 @@ type
 
 type
   TBsonKind* = enum
+    bkNone
     bkObj
     bkArr
     bkInt32
@@ -52,6 +53,8 @@ type
   TBsonBasicTypes* = int32|int64|string|TOid
   PBsonCtorNode* = ref object
     case kind: TBsonKind
+    of bkNone:
+      nil
     of bkObj:
       fieldsVal: seq[tuple[k: string, v: PBsonCtorNode]]
     of bkArr:
@@ -66,8 +69,11 @@ type
       oidVal: TOid
   PBsonNode* = ref object
     case kind*: TBsonKind
-    of bkObj, bkArr:
+    of bkNone:
       nil
+    of bkObj, bkArr:
+      bson: ref TBson
+      iter: mongo.TIter
     of bkInt32:
       int32Val*: int32
     of bkInt64:
@@ -76,32 +82,34 @@ type
       strVal*: string
     of bkOid:
       oidVal*: TOid
-  TMongoBson = mongo.TBson
-  PMongoBson = ptr TMongoBson
   TBson = object
-    handle: PMongoBson
+    handle: ptr mongo.TBson
     iter: ptr TIter
   PBson* = ref TBson
 
-proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind): PBsonNode =
-  case kind:
+proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
+      PBsonNode =
+  result = case kind:
   of mongo.bkOBJECT:
-    return PBsonNode(kind: bkObj)
+    PBsonNode(kind: bkObj, bson: bson, iter: iter)
   of mongo.bkARRAY:
-    return PBsonNode(kind: bkArr)
+    PBsonNode(kind: bkArr, bson: bson, iter: iter)
   of mongo.bkINT:
-    return PBsonNode(kind: bkInt32, int32Val: iter.intVal)
+    PBsonNode(kind: bkInt32, int32Val: iter.intVal)
   of mongo.bkLONG:
-    return PBsonNode(kind: bkInt64, int64Val: iter.int64Val)
+    PBsonNode(kind: bkInt64, int64Val: iter.int64Val)
   of mongo.bkSTRING:
-    return PBsonNode(kind: bkStr, strVal: $iter.strVal)
+    PBsonNode(kind: bkStr, strVal: $iter.strVal)
   of mongo.bkOID:
-    return PBsonNode(kind: bkOid, oidVal: iter.oidVal[])
+    PBsonNode(kind: bkOid, oidVal: iter.oidVal[])
   else:
     assert false # TODO: Cover every case.
+    PBsonNode(kind: bkObj)
 
 proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
   case v.kind:
+  of bkNone:
+    discard
   of bkObj:
     mongo.addStartObject(bson.handle[], k)
     for x in v.fieldsVal:
@@ -120,8 +128,6 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
     add(bson.handle[], k, v.strVal)
   of bkOid:
     add(bson.handle[], k, v.oidVal)
-  else:
-    assert false # TODO: Cover every case.
 
 proc newBson*(handle: ptr mongo.TBson): PBson =
   PBson(handle: handle, iter: nil)
@@ -135,7 +141,7 @@ proc newBson*(
     when false: mongo.destroy(o.handle[])
   )
 
-  result.handle = cast[PMongoBson](alloc(TMongoBson.sizeof))
+  result.handle = cast[ptr mongo.TBson](alloc(mongo.TBson.sizeof))
   mongo.init(result.handle[])
   for x in doc:
     result.add(x.k, x.v)
@@ -168,7 +174,32 @@ iterator subItems*(bson: PBson): tuple[k: string, v: PBsonNode] =
   while (let kind = subIter.next(); kind != bkEOO):
     let
       key = $subIter.key
-    yield (key, newBsonNode(subIter, kind))
+    yield (key, newBsonNode(subIter, kind, bson = nil))
+
+proc `[]`*(node: PBsonNode, k: string): PBsonNode =
+  assert node.kind in {bkArr, bkObj}
+  case node.kind:
+    of bkArr, bkObj:
+      var
+        subIter: TIter
+      mongo.subiterator(node.iter, subIter)
+      while (let kind = subIter.next(); kind != bkEOO):
+        if k == $subIter.key:
+          return newBsonNode(subIter, kind, node.bson)
+
+      return PBsonNode(kind: bkNone)
+    else:
+      assert false
+
+proc `[]`*(bson: PBson, k: string): PBsonNode =
+  var
+    iter = initIter(bson.handle[])
+  let
+    kind = mongo.find(iter, bson.handle[], k)
+  if kind == mongo.bkEOO:
+    PBsonNode(kind: bkNone)
+  else:
+    newBsonNode(iter, kind, bson)
 
 iterator items*(bson: PBson): tuple[k: string, v: PBsonNode] =
   var
@@ -179,9 +210,9 @@ iterator items*(bson: PBson): tuple[k: string, v: PBsonNode] =
     case kind:
     of mongo.bkOBJECT, mongo.bkARRAY:
       bson.setIter(iter)
-      yield (key, newBsonNode(iter, kind))
+      yield (key, newBsonNode(iter, kind, bson))
     else:
-      yield (key, newBsonNode(iter, kind))
+      yield (key, newBsonNode(iter, kind, bson = nil))
 
   bson.unsetIter()
 
