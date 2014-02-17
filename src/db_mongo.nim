@@ -27,7 +27,7 @@
 ##    delete(conn, "test.test", id)
 ##    close(conn)
 
-import mongo, oids
+import mongo, oids, typetraits
 export mongo.TCursorOpts
 
 type
@@ -129,6 +129,30 @@ type
     iter: ptr TIter
   PBson* = ref TBson
 
+template typeToKind(T: typedesc[TBsonBasicTypes]): mongo.TBsonKind =
+  when T is int32:
+    mongo.bkInt
+  elif T is int64:
+    mongo.bkLong
+  elif T is string:
+    mongo.bkSTRING
+  elif T is TOid:
+    mongo.bkOID
+  else:
+    {.fatal: "Unhandled type: " & T.name.}
+
+template getVal(i: var TIter, T: typedesc[TBsonBasicTypes]): expr =
+  when T is int32:
+    mongo.intVal(i).int32
+  elif T is int64:
+    mongo.longVal(i).int64
+  elif T is string:
+    $mongo.strVal(i)
+  elif T is TOid:
+    mongo.oidVal(i)
+  else:
+    {.fatal: "Unhandled type: " & T.name.}
+
 proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
       PBsonNode =
   case kind:
@@ -197,7 +221,7 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
   of bkBinData:
     mongo.addBinary(bson.handle[], k, v.binDataVal)
   of bkMinKey, bkMaxKey:
-    nil
+    discard
   of bkUtcDate:
     mongo.addDate(bson.handle[], k, v.utcDateVal)
   of bkTimestamp:
@@ -256,6 +280,21 @@ iterator subItems*(bson: PBson): tuple[k: string, v: PBsonNode] =
     let
       key = $subIter.key
     yield (key, newBsonNode(subIter, kind, bson = nil))
+
+proc `[]`*(node: PBsonNode, T: typedesc[TBsonBasicTypes]): seq[T] =
+  assert node.kind == bkArr
+  newSeq(result, 0)
+  var
+    subIter: TIter
+  mongo.subiterator(node.iter, subIter)
+  while (let kind = mongo.next(subIter); kind != bkEOO):
+    let
+      targetKind = typeToKind(result[0].type)
+    if kind == targetKind:
+      result.add getVal(subIter, result[0].type)
+    else:
+      raise newException(EInvalidValue,
+        "Expected " & $targetKind & "but got " & $kind)
 
 proc `[]`*(node: PBsonNode, k: string): PBsonNode =
   assert node.kind in {bkArr, bkObj}
@@ -367,7 +406,7 @@ iterator find*(
       namespace: string,
       query, fields: PBson = newBson(),
       limit, skip = 0.Natural,
-      cursorOpts: set[TCursorOpts] = {coTailable}): # Work around ICE.
+      cursorOpts: set[TCursorOpts] = {coPartial}): # Work around ICE.
         PBson {.tags: [FReadDB].} =
   ## yields the `fields` of any document in `namespace` that suffices `query`.
   ## `limit` specifies the maximum amount of documents to yield.

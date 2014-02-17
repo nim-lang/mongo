@@ -33,6 +33,9 @@ assert bson["arr2"]["0"].strVal == "o"
 assert bson["arr2"]["1"].strVal == "p"
 assert bson["arr2"]["2"].strVal == "q"
 
+# TODO: Assert that it fails when not all elements are of the specified type.
+assert bson["arr2"][string] == @["o", "p", "q"]
+
 for x in bson:
   case x.k:
   of "int32":
@@ -103,11 +106,13 @@ for x in db.find("test.nim_mongo_test",
       discard
     of "int32":
       assert y.v.int32Val == 1
+    else:
+      assert false
 
 for x in db.find("test.nim_mongo_test", %%{"int32": %1i32}):
   for y in x:
     case y.k:
-    of "_id", "obj", "arr":
+    of "_id", "obj", "arr1", "arr2":
       discard
     of "int32":
       assert y.v.int32Val == 1
