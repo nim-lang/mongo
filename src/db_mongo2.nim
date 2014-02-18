@@ -27,7 +27,7 @@
 ##    delete(conn, "test.test", id)
 ##    close(conn)
 
-import oids, typetraits
+import times, oids, typetraits
 import mongo2 as mongo
 export mongo.TCursorOpts
 
@@ -57,7 +57,7 @@ type
     bkRegex
     bkJsCode
     bkTimestamp
-    bkUtcDate
+    bkTime
     bkBinData
     bkMinKey
     bkMaxKey
@@ -88,8 +88,8 @@ type
       jsCodeVal: string
     of bkTimestamp:
       timestampVal: mongo.TTimestamp
-    of bkUtcDate:
-      utcDateVal: int64
+    of bkTime:
+      timeVal: TTime
     of bkMinKey, bkMaxKey:
       nil
     of bkBinData:
@@ -119,8 +119,8 @@ type
       jsCodeVal*: string
     of bkTimestamp:
       timestampVal*: TTimestamp
-    of bkUtcDate:
-      utcDateVal*: int64
+    of bkTime:
+      timeVal*: TTime
     of bkBinData:
       binDataVal*: string
     of bkMinKey, bkMaxKey:
@@ -185,7 +185,7 @@ proc newBsonNode(iter: var TIter, kind: mongo.TBsonKind, bson: PBson):
   of mongo.bkTIMESTAMP:
     PBsonNode(kind: bkTimestamp, timestampVal: iter.timestamp)
   of mongo.bkDATE:
-    PBsonNode(kind: bkutcdate, utcdateval: iter.date)
+    PBsonNode(kind: bkTime, timeVal: iter.time)
   of mongo.bkCODEWSCOPE:
     assert false, "TODO"
     PBsonNode(kind: bkNull)
@@ -223,8 +223,8 @@ proc add(bson: var PBson, k: string, v: PBsonCtorNode) =
     mongo.addBinary(bson.handle[], k, v.binDataVal)
   of bkMinKey, bkMaxKey:
     discard
-  of bkUtcDate:
-    mongo.addDate(bson.handle[], k, v.utcDateVal)
+  of bkTime:
+    mongo.addTime(bson.handle[], k, v.timeVal)
   of bkTimestamp:
     mongo.addTimestamp(bson.handle[], k, v.timestampVal)
   of bkJsCode:
@@ -367,6 +367,9 @@ proc `%`*(arr: openarray[PBsonCtorNode]): PBsonCtorNode =
 
 proc `%`*(arr: openarray[TBsonBasicTypes]): PBsonCtorNode =
   `%`(map(arr, proc(x: arr[0].type): PBsonCtorNode = %x))
+
+proc `%`*(time: TTime): PBsonCtorNode =
+  PBsonCtorNode(kind: bkTime, timeVal: time)
 
 proc dbError*(db: PDbConn, msg: string) {.noreturn.} =
   ## raises an EDb exception with message `msg`.
