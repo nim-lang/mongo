@@ -133,7 +133,9 @@ suite "MongoDB":
             of "_id":
               discard
             of "int32":
-              check y.v.int32Val == 1
+              check:
+                y.v.kind == bkInt32
+                y.v.int32Val == 1
             else:
               check false
 
@@ -143,8 +145,12 @@ suite "MongoDB":
             of "_id", "obj", "arr1", "arr2":
               discard
             of "int32":
-              check y.v.int32Val == 1
+              check:
+                y.v.kind == bkInt32
+                y.v.int32Val == 1
             of "int64":
-              check y.v.int64Val == 2
+              check:
+                y.v.kind == bkInt64
+                y.v.int64Val == 2
             else:
               check false
