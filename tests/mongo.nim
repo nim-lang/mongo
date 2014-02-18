@@ -1,4 +1,5 @@
-import db_mongo, sequtils, times, oids, unittest
+import sequtils, times, oids, unittest
+import db_mongo2 as db_mongo
 
 suite "MongoDB":
   test "BSON construction":
