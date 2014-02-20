@@ -90,15 +90,15 @@ suite "MongoDB":
       check:
         bson["int32"].int32Val == 1
         bson["int64"].int64Val == 2
-        
+
         bson["obj"]["field1"].int32Val == 6
         bson["obj"]["field2"].int64Val == 7
         bson["obj"]["field3"].strVal == "field3val"
-        
+
         bson["arr1"]["0"].int32Val == 12
         bson["arr1"]["1"].int64Val == 13
         bson["arr1"]["2"].strVal == "arr1str"
-        
+
         bson["arr2"]["0"].strVal == "o"
         bson["arr2"]["1"].strVal == "p"
         bson["arr2"]["2"].strVal == "q"

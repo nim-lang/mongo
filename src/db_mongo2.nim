@@ -16,7 +16,7 @@
 ##    var conn = db_mongo.open()
 ##
 ##    # construct JSON data:
-##    var data = %{"a": %13, "b": %"my string value", 
+##    var data = %{"a": %13, "b": %"my string value",
 ##                 "inner": %{"i": %71} }
 ##
 ##    var id = insertID(conn, "test.test", data)
@@ -395,7 +395,7 @@ proc open*(host: string = defaultHost, port: int = defaultPort): PDbConn {.
   )
   mongo.init(result.handle)
   result.hasClosed = false
-  
+
   let x = mongo.client(result.handle, host, port.cint)
   if x != 0i32:
     dbError(result, "cannot open: " & host)
@@ -435,7 +435,7 @@ proc setupQuery(query: string): mongo.TBson =
 
 iterator find*(db: PDbConn, namespace: string, query: string,
                fields: PBson): PBson {.tags: [FReadDB].} =
-  ## yields the `fields` of any document that suffices `query`. If `fields` 
+  ## yields the `fields` of any document that suffices `query`. If `fields`
   ## is ``[]`` the whole document is yielded.
   var q = setupQuery(query)
   var cursor = mongo.find(db.handle, namespace, q, fields.handle[], 0i32,
