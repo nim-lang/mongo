@@ -521,18 +521,23 @@ const
 
 type 
   TError*{.size: sizeof(cint).} = enum ## connection errors
-    CONN_SUCCESS = 0,         ## Connection success! 
-    CONN_NO_SOCKET,           ## Could not create a socket. 
-    CONN_FAIL,                ## An error occured while calling connect(). 
-    CONN_ADDR_FAIL,           ## An error occured while calling getaddrinfo(). 
-    CONN_NOT_MASTER,          ## Warning: connected to a non-master node (read-only). 
-    CONN_BAD_SET_NAME,        ## Given rs name doesn't match this replica set. 
-    CONN_NO_PRIMARY,          ## Can't find primary in replica set. Connection closed. 
-    IO_ERROR,                 ## An error occurred while reading or writing on the socket. 
-    READ_SIZE_ERROR,          ## The response is not the expected length. 
-    COMMAND_FAILED,           ## The command returned with 'ok' value of 0. 
-    BSON_INVALID,             ## BSON not valid for the specified op. 
-    BSON_NOT_FINISHED         ## BSON object has not been finished. 
+    errConnSuccess = 0, ## Connection success! 
+    errConnNoSocket, ## Could not create a socket. 
+    errConnFail, ## An error occured while calling connect(). 
+    errConnAddrFail, ## An error occured while calling getaddrinfo(). 
+    errConnNotMaster, ## Warning: connected to a non-master node (read-only). 
+    errConnBadSetName, ## Given rs name doesn't match this replica set. 
+    errConnNoPrimary, ## Can't find primary in replica set. Connection closed. 
+    errIo, ## An error occurred while reading or writing on the socket. 
+    errSocket, ## Other socket error.
+    errReadSize, ## The response is not the expected length. 
+    errCommandFailed, ## The command returned with 'ok' value of 0. 
+    errWrite, ## Write with given write_concern return an error.
+    errNsInvalid, ## The name for the ns (database or collection) is invalid.
+    errBsonInvalid, ## BSON not valid for the specified op. 
+    errBsonNotFinished, ## BSON object has not been finished. 
+    errBsonTooLarge, ## BSON object exceeds max BSON size.
+    errWriteConcernInvalid ## Supplied write concern object is invalid.
   TCursorError*{.size: sizeof(cint).} = enum ## cursor error 
     CURSOR_EXHAUSTED,         ## The cursor has no more results. 
     CURSOR_INVALID,           ## The cursor has timed out or is not recognized. 
