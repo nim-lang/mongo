@@ -1,5 +1,5 @@
 [Package]
-name: "nim-mongo"
+name: "mongo"
 version: "0.1"
 author: "Erik Johansson Andersson"
 description: "Bindings and a high-level interface for MongoDB"
