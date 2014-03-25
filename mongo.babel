@@ -5,7 +5,7 @@ author: "Erik Johansson Andersson"
 description: "Bindings and a high-level interface for MongoDB"
 license: "MIT"
 
-srcDir: "src"
+srcDir: "lib"
 
 [Deps]
 requires: "nimrod > 0.9.2"
