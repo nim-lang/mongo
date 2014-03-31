@@ -27,8 +27,7 @@
 ##    delete(conn, "test.test", id)
 ##    close(conn)
 
-import times, oids, typetraits
-import mongo2 as mongo
+import times, oids, typetraits, mongo
 export mongo.TCursorOpts
 
 type
