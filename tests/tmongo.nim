@@ -121,17 +121,16 @@ suite "mongo":
         else:
           assert false, k
 
-    when false: # TODO: %{:} is ambiguous. compiler bug?
-      test "update":
-        client.update(coll, %{:}, %{"$set": %{"int32Val": %500i32}})
-        var nUpdated = 0
-        for doc in client.find(coll):
-          for k, v, iter in doc.fields:
-            if k == "int32Val":
-              if v.int32Val == 500i32:
-                inc nUpdated
+    test "update":
+      client.update(coll, %{:}, %{"$set": %{"int32Val": %500i32}})
+      var nUpdated = 0
+      for doc in client.find(coll):
+        for k, v, iter in doc.fields:
+          if k == "int32Val":
+            if v.int32Val == 500i32:
+              inc nUpdated
 
-        check nUpdated == 1
+      check nUpdated == 1
 
     test "delete":
       client.delete(coll, flags = {dfRemoveOne})

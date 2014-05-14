@@ -185,7 +185,7 @@ proc `%`*(fields: openarray[tuple[k: string, v: TBsonCtor]]): TBsonCtor =
     b.vals[x[0]] = x[1]
   result = TBsonCtor(kind: bckDoc, doc: b)
 
-proc `%`*(arr: openarray[TBsonCtor]): TBsonCtor =
+proc `%`*[T](arr: array[T, TBsonCtor]): TBsonCtor =
   var s = newSeq[arr[0].type](arr.len)
   for i, x in arr:
     s[i] = x
