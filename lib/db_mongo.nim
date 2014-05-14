@@ -178,7 +178,7 @@ proc toBsonImpl(o: TBsonCtor, k: string, b: ptr bson.TBson) =
   if not appendSucceeded:
     fail "not enough space to append"
 
-proc `%`*[T](fields: array[T, tuple[k: string, v: TBsonCtor]]): TBsonCtor =
+proc `%`*(fields: openarray[tuple[k: string, v: TBsonCtor]]): TBsonCtor =
   var b = new(TBsonCtorDoc)
   b[] = TBsonCtorDoc(vals: initTable[string, TBsonCtor]())
   for x in fields:
@@ -236,18 +236,30 @@ proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
       if x == ($y)[0]:
         result.incl y
 
-# TODO: Read prefs argument.
-proc count*(
+proc update*(
       o: TClient,
       coll: tuple[db, coll: string],
-      query = newBson(),
-      flags: set[TQueryFlags] = {},
-      skip, limit = 0.Natural): Natural =
+      selector, update: ref TBson,
+      flags: set[TUpdateFlags] = {}) =
+  # TODO: write concern and error handling.
+  echo 1
+  if not mongo.collectionUpdate(o.getColl(coll), flags, selector.handle,
+          update.handle, nil.TWriteConcern, nil):
+    echo 2
+    fail "unable to invoke 'update' on collection"
+
+# TODO: Read prefs argument.
+proc count*(
+        o: TClient,
+        coll: tuple[db, coll: string],
+        query = newBson(),
+        flags: set[TQueryFlags] = {},
+        skip, limit = 0.Natural): Natural =
   # TODO: Error checking (last field)
   var n = mongo.collection_count(o.getColl(coll), flags, query.handle,
     skip.int64, limit.int64, nil.TReadPrefs, nil)
   if n == -1:
-    fail "unable to invoke count on collection"
+    fail "unable to invoke 'count' on collection"
 
   result = n
 
