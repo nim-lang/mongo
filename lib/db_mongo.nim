@@ -36,12 +36,12 @@ type
     bckMaxKey = (0x7f, "Max key")
     bckMinKey = (0xff, "Min key")
   TJsRegexOpt* = enum
-    broInsensitive = (0, "i")
-    broLocaleWordMatching = (1, "l")
-    broMultiline = (2, "m")
-    broDotAll = (3, "s")
-    broUnicodeWordMatching = (4, "u")
-    broVerbose = (5, "x")
+    jroInsensitive = (0, "i")
+    jroLocaleWordMatching = (1, "l")
+    jroMultiline = (2, "m")
+    jroDotAll = (3, "s")
+    jroUnicodeWordMatching = (4, "u")
+    jroVerbose = (5, "x")
   TBsonCtorDoc* = object
     vals*: TTable[string, TBsonCtor]
   TJsRegex* = tuple[pattern: string, opts: set[TJsRegexOpt]]

@@ -21,7 +21,7 @@ suite "mongo":
           "int32Val": %1i32,
           "int64Val": %2i64,
           "double": %3.3,
-          "jsRegex": %("foo.*bar", {broInsensitive, broMultiline}),
+          "jsRegex": %("foo.*bar", {jroInsensitive, jroMultiline}),
           "bool1": %true,
           "bool2": %false,
           "doc": %{
@@ -69,7 +69,7 @@ suite "mongo":
           assert v.float64Val in 3.29 .. 3.31
         of "jsRegex":
           assert $v.jsRegex.pattern == "foo.*bar"
-          assert v[].jsRegexOpts == {broInsensitive, broMultiline}
+          assert v[].jsRegexOpts == {jroInsensitive, jroMultiline}
         of "bool1":
           assert v.boolVal
         of "bool2":
