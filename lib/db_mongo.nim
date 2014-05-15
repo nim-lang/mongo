@@ -92,6 +92,13 @@ type
     bbkMd5 = (5, "MD5")
     bbkUserDefined = (6, "User defined")
 
+type
+  TClient* = object
+    handle: mongo.TClient
+  EMongoError* = object of E_Base
+
+converter toHandle(o: TClient): mongo.TClient = o.handle
+
 proc `$`*(opts: set[TJsRegexOpt]): string =
   result = ""
   for x in TJsRegexOpt:
@@ -191,13 +198,6 @@ proc `%`*[T](arr: array[T, TBsonCtor]): TBsonCtor =
     s[i] = x
   result = TBsonCtor(kind: bckArr, arr: s)
 
-type
-  TClient* = object
-    handle: mongo.TClient
-  EMongoError* = object of E_Base
-
-converter toHandle(o: TClient): mongo.TClient = o.handle
-
 proc isOwner*(o: TBson): bool =
   o.isOwner
 
@@ -221,13 +221,34 @@ converter toBson*(o: TBsonCtor): ref TBson =
 
   newBson(b, isOwner = true)
 
-proc initClient*(uri: string = "mongodb://127.0.0.1"): TClient =
+type
+  TWriteConcernAck* = enum
+    wcatMajority = -1
+    wcatOff
+    wcatOn
+
+proc newWriteConcern*(journalling = true,
+                       writeConcernAck: TWriteConcernAck|range[2 .. 1000] = wcatOn,
+                       wTimeout = 0.Natural,
+                       fsync = false): TWriteConcern =
+  result = mongo.write_concern_new()
+  mongo.write_concern_set_fsync(result, fsync)
+  mongo.write_concern_set_journal(result, journalling)
+  mongo.write_concern_set_w(result, writeConcernAck.int32)
+
+proc `writeConcern=`*(o: TClient, val: TWriteConcern) =
+  client_set_write_concern(o, val)
+
+proc initClient*(uri: string = "mongodb://127.0.0.1",
+        writeConcern = newWriteConcern(writeConcernAck = wcatOn)): TClient = # XXX: writeConcernAck cannot be omitted.
   result = TClient(handle: mongo.client_new(uri))
   if result.handle.pointer == nil:
-    fail "TODO"
+    fail "Invalid MongoDB URI: ", uri
+
+  result.writeConcern = writeConcern
 
 proc getColl(o: TClient, coll: tuple[db, coll: string]): mongo.TCollection =
-  mongo.clientGetCollection(o.handle, coll.db, coll.coll)
+  mongo.clientGetCollection(o, coll.db, coll.coll)
 
 proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
   assert o.kind == bkJsRegex
@@ -242,10 +263,8 @@ proc update*(
       selector, update: ref TBson,
       flags: set[TUpdateFlags] = {}) =
   # TODO: write concern and error handling.
-  echo 1
   if not mongo.collectionUpdate(o.getColl(coll), flags, selector.handle,
           update.handle, nil.TWriteConcern, nil):
-    echo 2
     fail "unable to invoke 'update' on collection"
 
 # TODO: Read prefs argument.
@@ -256,11 +275,11 @@ proc count*(
         flags: set[TQueryFlags] = {},
         skip, limit = 0.Natural): Natural =
   # TODO: Error checking (last field)
-  var n = mongo.collection_count(o.getColl(coll), flags, query.handle,
+  var c = o.getColl(coll)
+  var n = mongo.collection_count(c, flags, query.handle,
     skip.int64, limit.int64, nil.TReadPrefs, nil)
   if n == -1:
     fail "unable to invoke 'count' on collection"
-
   result = n
 
 # TODO: # bulk delete.
@@ -318,16 +337,9 @@ iterator find*(
 # TODO: bulk insert.
 proc insert*(o: TClient, coll: tuple[db, coll: string], doc: ref TBson,
       flags: set[TInsertFlags] = {}) =
-  var coll = o.getColl(coll)
-
   # TODO: If true, propagate the error in 'error'.
   # TODO: write concern.
-  var success = mongo.collection_insert(
-    collection = coll,
-    flags,
-    document = doc.handle,
-    write_concern = nil.TWriteConcern,
-    error = nil)
+  var success = mongo.collection_insert(o.getColl(coll), flags, doc.handle, nil.TWriteConcern, nil)
 
 iterator arrIndices*(o: ptr bson.TIter):
         tuple[idx: int, v: ptr bson.TBsonVal, iter: ptr bson.TIter] =
