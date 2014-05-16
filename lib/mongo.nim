@@ -17,41 +17,37 @@ when defined(windows):
 elif defined(posix):
   import posix
 
-const
-  MONGOC_NAMESPACE_MAX* = 128
-const
-  MONGOC_STREAM_SOCKET* = 1
-  MONGOC_STREAM_FILE* = 2
-  MONGOC_STREAM_BUFFERED* = 3
-  MONGOC_STREAM_GRIDFS* = 4
-  MONGOC_STREAM_TLS* = 5
-const
-  MONGOC_CLUSTER_MAX_NODES* = 12
-  MONGOC_CLUSTER_PING_NUM_SAMPLES* = 5
-const
-  MONGOC_ERROR_PROTOCOL_ERROR = 17 # part of TErrorCode
-  MONGOC_INSERT_NO_VALIDATE* = (1 shl 31)
 type
   TClientPool* = distinct pointer
   TGridFsFileList* = distinct pointer
   TLogLevel* {.size: sizeof(cint).} = enum
-    MONGOC_LOG_LEVEL_ERROR, MONGOC_LOG_LEVEL_CRITICAL, MONGOC_LOG_LEVEL_WARNING,
-    MONGOC_LOG_LEVEL_MESSAGE, MONGOC_LOG_LEVEL_INFO, MONGOC_LOG_LEVEL_DEBUG,
-    MONGOC_LOG_LEVEL_TRACE
+    llError,
+    llCritical,
+    llWarning,
+    llMessage,
+    llInfo,
+    llDebug,
+    llTrace
   TLog_func* = proc (log_level: TLogLevel; log_domain: cstring;
                              message: cstring; user_data: pointer)
   TClusterMode* {.size: sizeof(cint).} = enum
-    MONGOC_CLUSTER_DIRECT, MONGOC_CLUSTER_REPLICA_SET,
-    MONGOC_CLUSTER_SHARDED_CLUSTER
+    cmDirect,
+    cmReplicaSet,
+    cmShardedCluster
   TClusterState* {.size: sizeof(cint).} = enum
-    MONGOC_CLUSTER_STATE_BORN = 0, MONGOC_CLUSTER_STATE_HEALTHY = 1,
-    MONGOC_CLUSTER_STATE_DEAD = 2, MONGOC_CLUSTER_STATE_UNHEALTHY = (
-        MONGOC_CLUSTER_STATE_DEAD.cint or MONGOC_CLUSTER_STATE_HEALTHY.cint)
+    ctBorn = 0,
+    ctHealthy = 1,
+    ctDead = 2,
+    ctUnhealthy = (ctDead.cint or ctHealthy.cint)
   TOpcode* {.size: sizeof(cint).} = enum
-    MONGOC_OPCODE_REPLY = 1, MONGOC_OPCODE_MSG = 1000,
-    MONGOC_OPCODE_UPDATE = 2001, MONGOC_OPCODE_INSERT = 2002,
-    MONGOC_OPCODE_QUERY = 2004, MONGOC_OPCODE_GET_MORE = 2005,
-    MONGOC_OPCODE_REMOVE = 2006, MONGOC_OPCODE_KILL_CURSORS = 2007
+    oReply = 1,
+    oMsg = 1000,
+    oUpdate = 2001,
+    oInsert = 2002,
+    oQuery = 2004,
+    oGetMore = 2005,
+    oRemove = 2006,
+    oKillCursors = 2007
   TQueue* = distinct pointer
   TQueueItem* = distinct pointer
   TSslOpt* = distinct pointer
