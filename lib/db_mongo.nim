@@ -228,9 +228,9 @@ type
     wcatOn
 
 proc newWriteConcern*(journalling = true,
-                       writeConcernAck: TWriteConcernAck|range[2 .. 1000] = wcatOn,
-                       wTimeout = 0.Natural,
-                       fsync = false): TWriteConcern =
+                      writeConcernAck: TWriteConcernAck|range[2 .. 1000] = wcatOn,
+                      wTimeout = 0.Natural,
+                      fsync = false): TWriteConcern =
   result = mongo.write_concern_new()
   mongo.write_concern_set_fsync(result, fsync)
   mongo.write_concern_set_journal(result, journalling)
@@ -261,10 +261,11 @@ proc update*(
       o: TClient,
       coll: tuple[db, coll: string],
       selector, update: ref TBson,
-      flags: set[TUpdateFlags] = {}) =
-  # TODO: write concern and error handling.
+      flags: set[TUpdateFlags] = {},
+      writeConcern = nil.TWriteConcern) =
+  # TODO: error handling.
   if not mongo.collectionUpdate(o.getColl(coll), flags, selector.handle,
-          update.handle, nil.TWriteConcern, nil):
+          update.handle, writeConcern, nil):
     fail "unable to invoke 'update' on collection"
 
 # TODO: Read prefs argument.
@@ -287,10 +288,11 @@ proc remove*(
       o: TClient,
       coll: tuple[db, coll: string],
       selector = newBson(),
-      flags: set[TRemoveFlags] = {}) =
+      flags: set[TRemoveFlags] = {},
+      writeConcern = nil.TWriteConcern) =
   # TODO: write concern, and error checking (last param).
   if not mongo.collectionRemove(o.getColl(coll), flags,
-          selector.handle, nil.TWriteConcern, nil):
+          selector.handle, writeConcern, nil):
     fail "unable to invoke remove on collection"
 
 iterator find*(
@@ -310,7 +312,7 @@ iterator find*(
     for x in flags:
       queryFlagsInt = queryFlagsInt or x.cint
 
-  # TODO: write concern and read prefs.
+  # TODO: read prefs.
   # TODO: needs to be freed with mongoc_collection_destroy.
   var cursor = mongo.collectionFind(
         o.getColl(coll),
@@ -336,10 +338,11 @@ iterator find*(
 
 # TODO: bulk insert.
 proc insert*(o: TClient, coll: tuple[db, coll: string], doc: ref TBson,
-      flags: set[TInsertFlags] = {}) =
+      flags: set[TInsertFlags] = {},
+      writeConcern = nil.TWriteConcern) =
   # TODO: If true, propagate the error in 'error'.
-  # TODO: write concern.
-  var success = mongo.collection_insert(o.getColl(coll), flags, doc.handle, nil.TWriteConcern, nil)
+  var success = mongo.collection_insert(o.getColl(coll), flags, doc.handle,
+    writeConcern, nil)
 
 iterator arrIndices*(o: ptr bson.TIter):
         tuple[idx: int, v: ptr bson.TBsonVal, iter: ptr bson.TIter] =
