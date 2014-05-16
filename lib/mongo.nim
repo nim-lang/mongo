@@ -51,7 +51,7 @@ type
     MONGOC_OPCODE_REPLY = 1, MONGOC_OPCODE_MSG = 1000,
     MONGOC_OPCODE_UPDATE = 2001, MONGOC_OPCODE_INSERT = 2002,
     MONGOC_OPCODE_QUERY = 2004, MONGOC_OPCODE_GET_MORE = 2005,
-    MONGOC_OPCODE_DELETE = 2006, MONGOC_OPCODE_KILL_CURSORS = 2007
+    MONGOC_OPCODE_REMOVE = 2006, MONGOC_OPCODE_KILL_CURSORS = 2007
   TQueue* = distinct pointer
   TQueueItem* = distinct pointer
   TSslOpt* = distinct pointer
@@ -130,8 +130,8 @@ type
     language_override*: cstring
     padding*: array[8, pointer]
   TBulk_operation* = distinct pointer
-  TDeleteFlags* {.size: sizeof(cint).} = enum
-    dfRemoveOne = 1 shl 0
+  TRemoveFlags* {.size: sizeof(cint).} = enum
+    rfRemoveOne = 1 shl 0
   TInsertFlags* {.size: sizeof(cint).} = enum
     ifContinueOnErr = 1 shl 0
   TQueryFlags* {.size: sizeof(cint).} = enum
@@ -158,9 +158,9 @@ type
 proc bulk_operation_destroy*(bulk: TBulk_operation)
 proc bulk_operation_execute*(bulk: TBulk_operation;
                                     reply: ptr TBson; error: ptr bson.TError): bool
-proc bulk_operation_delete*(bulk: TBulk_operation;
+proc bulk_operation_remove*(bulk: TBulk_operation;
                                    selector: ptr TBson)
-proc bulk_operation_delete_one*(bulk: TBulk_operation;
+proc bulk_operation_remove_one*(bulk: TBulk_operation;
                                        selector: ptr TBson)
 proc bulk_operation_insert*(bulk: TBulk_operation;
                                    document: ptr TBson)
@@ -267,8 +267,8 @@ proc collection_update*(collection: TCollection;
                                selector: ptr TBson; update: ptr TBson;
                                write_concern: TWriteConcern;
                                error: ptr bson.TError): bool
-proc collection_delete*(collection: TCollection;
-                               flags: TDeleteFlags;
+proc collection_remove*(collection: TCollection;
+                               flags: TRemoveFlags;
                                selector: ptr TBson;
                                write_concern: TWriteConcern;
                                error: ptr bson.TError): bool

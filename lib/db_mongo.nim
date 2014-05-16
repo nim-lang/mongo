@@ -282,16 +282,16 @@ proc count*(
     fail "unable to invoke 'count' on collection"
   result = n
 
-# TODO: # bulk delete.
-proc delete*(
+# TODO: # bulk remove.
+proc remove*(
       o: TClient,
       coll: tuple[db, coll: string],
       selector = newBson(),
-      flags: set[TDeleteFlags] = {}) =
+      flags: set[TRemoveFlags] = {}) =
   # TODO: write concern, and error checking (last param).
-  if not mongo.collectionDelete(o.getColl(coll), flags,
+  if not mongo.collectionRemove(o.getColl(coll), flags,
           selector.handle, nil.TWriteConcern, nil):
-    fail "unable to invoke delete on collection"
+    fail "unable to invoke remove on collection"
 
 iterator find*(
         o: TClient,

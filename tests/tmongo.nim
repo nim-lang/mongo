@@ -13,7 +13,7 @@ suite "mongo":
     db_mongo.cleanup()
 
   test "insert":
-    client.delete(coll)
+    client.remove(coll)
     assert client.count(coll) == 0
 
     for i in 0 .. 19:
@@ -132,9 +132,9 @@ suite "mongo":
 
       check nUpdated == 1
 
-    test "delete":
-      client.delete(coll, flags = {dfRemoveOne})
+    test "remove":
+      client.remove(coll, flags = {rfRemoveOne})
       assert client.count(coll) == 19
 
-      client.delete(coll)
+      client.remove(coll)
       assert client.count(coll) == 0
