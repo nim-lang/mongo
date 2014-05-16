@@ -6,10 +6,14 @@ suite "mongo":
   setup:
     db_mongo.init()
     var
-      client = initClient()
+      client: db_mongo.TClient
       coll = ("test", "nim_mongo")
+    initClient(client)
 
   teardown:
+    when false: # XXX: not accessible here.
+      client.destruct()
+
     db_mongo.cleanup()
 
   test "insert":
@@ -60,7 +64,7 @@ suite "mongo":
       for k, v, iter in x.fields:
         case k
         of "_id":
-          nil
+          discard
         of "int32Val":
           assert v.int32Val == 1
         of "int64Val":

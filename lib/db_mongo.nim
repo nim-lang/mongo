@@ -97,7 +97,7 @@ type
     handle: mongo.TClient
   EMongoError* = object of E_Base
 
-converter toHandle(o: TClient): mongo.TClient = o.handle
+converter toHandle(o: var TClient): mongo.TClient = o.handle
 
 proc `$`*(opts: set[TJsRegexOpt]): string =
   result = ""
@@ -236,18 +236,21 @@ proc newWriteConcern*(journalling = true,
   mongo.write_concern_set_journal(result, journalling)
   mongo.write_concern_set_w(result, writeConcernAck.int32)
 
-proc `writeConcern=`*(o: TClient, val: TWriteConcern) =
+proc `writeConcern=`*(o: var TClient, val: TWriteConcern) =
   client_set_write_concern(o, val)
 
-proc initClient*(uri: string = "mongodb://127.0.0.1",
-        writeConcern = newWriteConcern(writeConcernAck = wcatOn)): TClient = # XXX: writeConcernAck cannot be omitted.
-  result = TClient(handle: mongo.client_new(uri))
-  if result.handle.pointer == nil:
+proc initClient*(o: var TClient, uri: string = "mongodb://127.0.0.1",
+        writeConcern = newWriteConcern(writeConcernAck = wcatOn)) = # XXX: writeConcernAck cannot be omitted.
+  o = TClient(handle: mongo.client_new(uri))
+  if o.handle.pointer == nil:
     fail "Invalid MongoDB URI: ", uri
 
-  result.writeConcern = writeConcern
+  o.writeConcern = writeConcern
 
-proc getColl(o: TClient, coll: tuple[db, coll: string]): mongo.TCollection =
+proc destruct*(o: var TClient) = # XXX: generates invalid code: {.destructor.} =
+  mongo.clientDestroy(o)
+
+proc getColl(o: var TClient, coll: tuple[db, coll: string]): mongo.TCollection =
   mongo.clientGetCollection(o, coll.db, coll.coll)
 
 proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
@@ -258,7 +261,7 @@ proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
         result.incl y
 
 proc update*(
-      o: TClient,
+      o: var TClient,
       coll: tuple[db, coll: string],
       selector, update: ref TBson,
       flags: set[TUpdateFlags] = {},
@@ -270,7 +273,7 @@ proc update*(
 
 # TODO: Read prefs argument.
 proc count*(
-        o: TClient,
+        o: var TClient,
         coll: tuple[db, coll: string],
         query = newBson(),
         flags: set[TQueryFlags] = {},
@@ -285,7 +288,7 @@ proc count*(
 
 # TODO: # bulk remove.
 proc remove*(
-      o: TClient,
+      o: var TClient,
       coll: tuple[db, coll: string],
       selector = newBson(),
       flags: set[TRemoveFlags] = {},
@@ -296,7 +299,7 @@ proc remove*(
     fail "unable to invoke remove on collection"
 
 iterator find*(
-        o: TClient,
+        o: var TClient,
         coll: tuple[db, coll: string],
         query = newBson(),
         fields = newBson(),
@@ -337,7 +340,7 @@ iterator find*(
     bson.destroy(doc)
 
 # TODO: bulk insert.
-proc insert*(o: TClient, coll: tuple[db, coll: string], doc: ref TBson,
+proc insert*(o: var TClient, coll: tuple[db, coll: string], doc: ref TBson,
       flags: set[TInsertFlags] = {},
       writeConcern = nil.TWriteConcern) =
   # TODO: If true, propagate the error in 'error'.
