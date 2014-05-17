@@ -196,6 +196,13 @@ type
     message*: array[504, char]
   realloc_func* = proc (mem: pointer; num_bytes: csize; ctx: pointer): pointer
 
+when false: # XXX: 'var' here results in incorrectly generated C code.
+  proc `$`*(o: var TError): string =
+    result = $cast[cstring](o.message[0].addr)
+else:
+  proc `$`*(o: TError): string =
+    var tmp = o
+    result = $cast[cstring](tmp.message[0].addr)
 
 proc init*: TBson =
   result.flags = 3

@@ -228,9 +228,9 @@ type
     wcatOn
 
 proc newWriteConcern*(journalling = true,
-                      writeConcernAck: TWriteConcernAck|range[2 .. 1000] = wcatOn,
-                      wTimeout = 0.Natural,
-                      fsync = false): TWriteConcern =
+        writeConcernAck: TWriteConcernAck|range[2 .. 1000] = wcatOn,
+        wTimeout = 0.Natural,
+        fsync = false): TWriteConcern =
   result = mongo.write_concern_new()
   mongo.write_concern_set_fsync(result, fsync)
   mongo.write_concern_set_journal(result, journalling)
@@ -260,54 +260,48 @@ proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
       if x == ($y)[0]:
         result.incl y
 
-proc update*(
-      o: var TClient,
+proc update*(o: var TClient,
       coll: tuple[db, coll: string],
       selector, update: ref TBson,
       flags: set[TUpdateFlags] = {},
       writeConcern = nil.TWriteConcern) =
-  # TODO: error handling.
+  var error: bson.TError
   if not mongo.collectionUpdate(o.getColl(coll), flags, selector.handle,
-          update.handle, writeConcern, nil):
-    fail "unable to invoke 'update' on collection"
+          update.handle, writeConcern, addr error):
+    fail error
 
 # TODO: Read prefs argument.
-proc count*(
-        o: var TClient,
+proc count*(o: var TClient,
         coll: tuple[db, coll: string],
         query = newBson(),
         flags: set[TQueryFlags] = {},
         skip, limit = 0.Natural): Natural =
-  # TODO: Error checking (last field)
   var c = o.getColl(coll)
+  var error: bson.TError
   var n = mongo.collection_count(c, flags, query.handle,
-    skip.int64, limit.int64, nil.TReadPrefs, nil)
+    skip.int64, limit.int64, nil.TReadPrefs, addr error)
   if n == -1:
-    fail "unable to invoke 'count' on collection"
+    fail error
   result = n
 
 # TODO: # bulk remove.
-proc remove*(
-      o: var TClient,
+proc remove*(o: var TClient,
       coll: tuple[db, coll: string],
       selector = newBson(),
       flags: set[TRemoveFlags] = {},
       writeConcern = nil.TWriteConcern) =
-  # TODO: write concern, and error checking (last param).
+  # TODO: write concern
+  var error: bson.TError
   if not mongo.collectionRemove(o.getColl(coll), flags,
-          selector.handle, writeConcern, nil):
-    fail "unable to invoke remove on collection"
+          selector.handle, writeConcern, addr error):
+    fail error
 
-iterator find*(
-        o: var TClient,
+iterator find*(o: var TClient,
         coll: tuple[db, coll: string],
         query = newBson(),
         fields = newBson(),
         flags: set[TQueryFlags] = {},
         skip, limit, batchSize = 0.Natural): ref TBson =
-  var error: bson.TError
-
-
   # TODO: not needed because of the converter, and maybe the presence of it
   # causes invalid C code to be generated; report it.
   when false:
@@ -329,9 +323,13 @@ iterator find*(
   assert cursor.pointer != nil, "Invalid API usage"
   var doc: ptr bson.TBson
 
-  while not mongo.cursor_error(cursor, addr error) and
-        mongo.cursor_more(cursor):
-    if mongo.cursor_next(cursor, cast[ptr ptr bson.TBson](addr doc)):
+  var error: bson.TError
+  while true:
+    if mongo.cursor_error(cursor, addr error):
+      fail error
+
+    if mongo.cursor_more(cursor) and
+          mongo.cursor_next(cursor, cast[ptr ptr bson.TBson](addr doc)):
       yield newBson(doc, isOwner = false)
     else:
       break
@@ -341,11 +339,13 @@ iterator find*(
 
 # TODO: bulk insert.
 proc insert*(o: var TClient, coll: tuple[db, coll: string], doc: ref TBson,
-      flags: set[TInsertFlags] = {},
-      writeConcern = nil.TWriteConcern) =
+        flags: set[TInsertFlags] = {},
+        writeConcern = nil.TWriteConcern) =
   # TODO: If true, propagate the error in 'error'.
-  var success = mongo.collection_insert(o.getColl(coll), flags, doc.handle,
-    writeConcern, nil)
+  var error: bson.TError
+  if not mongo.collection_insert(o.getColl(coll), flags, doc.handle,
+        writeConcern, addr error):
+    fail error
 
 iterator arrIndices*(o: ptr bson.TIter):
         tuple[idx: int, v: ptr bson.TBsonVal, iter: ptr bson.TIter] =
@@ -355,7 +355,7 @@ iterator arrIndices*(o: ptr bson.TIter):
     len: uint32
     data: ptr uint8
     b: bson.TBson
-  bson.iter_array o[], len, data.addr
+  bson.iter_array o[], len, addr data
   if not bson.init_static(b, data[], len):
     fail "Unable to initialise BSON"
 
@@ -375,7 +375,7 @@ iterator arrIndices*(o: ptr bson.TIter):
     if key == nil:
       fail "unable to get BSON key"
 
-    yield (idx, val, iter.addr)
+    yield (idx, val, addr iter)
     inc idx
 
 iterator fields*(o: ptr bson.TIter):
@@ -384,7 +384,7 @@ iterator fields*(o: ptr bson.TIter):
 
   var len: uint32
   var data: ptr uint8
-  bson.iter_document o[], len, data.addr
+  bson.iter_document o[], len, addr data
   var b: bson.TBson
   if not bson.init_static(b, data[], len):
     fail "Unable to initialise BSON"
@@ -397,11 +397,12 @@ iterator fields*(o: ptr bson.TIter):
     var val = bson.iter_value(iter)
     if val == nil:
       fail "unable to get BSON value"
+
     var key = bson.iter_key(iter)
     if key == nil:
       fail "unable to get BSON key"
 
-    yield ($key, val, iter.addr)
+    yield ($key, val, addr iter)
 
 iterator fields*(o: ref TBson):
         tuple[k: string, v: ptr bson.TBsonVal, iter: ptr bson.TIter] =
@@ -413,8 +414,9 @@ iterator fields*(o: ref TBson):
     var val = bson.iter_value(iter)
     if val == nil:
       fail "unable to get BSON value"
+
     var key = bson.iter_key(iter)
     if key == nil:
       fail "unable to get BSON key"
 
-    yield ($key, val, iter.addr)
+    yield ($key, val, addr iter)
