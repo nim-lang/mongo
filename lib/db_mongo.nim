@@ -95,7 +95,6 @@ type
 type
   TClient* = object
     handle: mongo.TClient
-  EMongoError* = object of E_Base
 
 converter toHandle(o: var TClient): mongo.TClient = o.handle
 
