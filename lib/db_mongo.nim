@@ -354,7 +354,6 @@ proc insert*(
         flags: set[TInsertFlags] = {},
         writeConcern = nil.TWriteConcern,
         coll: tuple[db, coll: string] = (nil, nil)) =
-  # TODO: If true, propagate the error in 'error'.
   var error: bson.TError
   if not mongo.collection_insert(o.getColl(coll), flags, doc.handle,
         writeConcern, addr error):
