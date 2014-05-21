@@ -92,12 +92,6 @@ type
     bbkMd5 = (5, "MD5")
     bbkUserDefined = (6, "User defined")
 
-type
-  TClient* = object
-    handle: mongo.TClient
-
-converter toHandle(o: var TClient): mongo.TClient = o.handle
-
 proc `$`*(opts: set[TJsRegexOpt]): string =
   result = ""
   for x in TJsRegexOpt:
@@ -235,22 +229,39 @@ proc newWriteConcern*(journalling = true,
   mongo.write_concern_set_journal(result, journalling)
   mongo.write_concern_set_w(result, writeConcernAck.int32)
 
+type
+  TClient* = object
+    handle: mongo.TClient
+    defaultColl: TCollection
+
+converter toHandle(o: var TClient): mongo.TClient = o.handle
+
 proc `writeConcern=`*(o: var TClient, val: TWriteConcern) =
   client_set_write_concern(o, val)
 
-proc initClient*(o: var TClient, uri: string = "mongodb://127.0.0.1",
+proc getColl(o: var TClient, coll: tuple[db, coll: string]):
+        mongo.TCollection =
+  if coll == (nil, nil):
+    assert o.defaultColl.pointer != nil
+    o.defaultColl
+  else:
+    mongo.clientGetCollection(o, coll.db, coll.coll)
+
+proc initClient*(
+        o: var TClient,
+        uri: string = "mongodb://127.0.0.1",
+        defaultColl: tuple[db, coll: string] = (nil, nil),
         writeConcern = newWriteConcern(writeConcernAck = wcatOn)) = # XXX: writeConcernAck cannot be omitted.
   o = TClient(handle: mongo.client_new(uri))
   if o.handle.pointer == nil:
     fail "Invalid MongoDB URI: ", uri
 
   o.writeConcern = writeConcern
+  if defaultColl != (nil, nil):
+    o.defaultColl = o.getColl(defaultColl)
 
 proc destruct*(o: var TClient) = # XXX: generates invalid code: {.destructor.} =
   mongo.clientDestroy(o)
-
-proc getColl(o: var TClient, coll: tuple[db, coll: string]): mongo.TCollection =
-  mongo.clientGetCollection(o, coll.db, coll.coll)
 
 proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
   assert o.kind == bkJsRegex
@@ -260,10 +271,10 @@ proc jsRegexOpts*(o: TBsonVal): set[TJsRegexOpt] =
         result.incl y
 
 proc update*(o: var TClient,
-      coll: tuple[db, coll: string],
       selector, update: ref TBson,
       flags: set[TUpdateFlags] = {},
-      writeConcern = nil.TWriteConcern) =
+      writeConcern = nil.TWriteConcern,
+      coll: tuple[db, coll: string] = (nil, nil)) =
   var error: bson.TError
   if not mongo.collectionUpdate(o.getColl(coll), flags, selector.handle,
           update.handle, writeConcern, addr error):
@@ -271,10 +282,10 @@ proc update*(o: var TClient,
 
 # TODO: Read prefs argument.
 proc count*(o: var TClient,
-        coll: tuple[db, coll: string],
         query = newBson(),
         flags: set[TQueryFlags] = {},
-        skip, limit = 0.Natural): Natural =
+        skip, limit = 0.Natural,
+        coll: tuple[db, coll: string] = (nil, nil)): Natural =
   var c = o.getColl(coll)
   var error: bson.TError
   var n = mongo.collection_count(c, flags, query.handle,
@@ -285,10 +296,10 @@ proc count*(o: var TClient,
 
 # TODO: # bulk remove.
 proc remove*(o: var TClient,
-      coll: tuple[db, coll: string],
       selector = newBson(),
       flags: set[TRemoveFlags] = {},
-      writeConcern = nil.TWriteConcern) =
+      writeConcern = nil.TWriteConcern,
+      coll: tuple[db, coll: string] = (nil, nil)) =
   # TODO: write concern
   var error: bson.TError
   if not mongo.collectionRemove(o.getColl(coll), flags,
@@ -296,11 +307,11 @@ proc remove*(o: var TClient,
     fail error
 
 iterator find*(o: var TClient,
-        coll: tuple[db, coll: string],
         query = newBson(),
         fields = newBson(),
         flags: set[TQueryFlags] = {},
-        skip, limit, batchSize = 0.Natural): ref TBson =
+        skip, limit, batchSize = 0.Natural,
+        coll: tuple[db, coll: string] = (nil, nil)): ref TBson =
   # TODO: not needed because of the converter, and maybe the presence of it
   # causes invalid C code to be generated; report it.
   when false:
@@ -337,9 +348,12 @@ iterator find*(o: var TClient,
     bson.destroy(doc)
 
 # TODO: bulk insert.
-proc insert*(o: var TClient, coll: tuple[db, coll: string], doc: ref TBson,
+proc insert*(
+        o: var TClient,
+        doc: ref TBson,
         flags: set[TInsertFlags] = {},
-        writeConcern = nil.TWriteConcern) =
+        writeConcern = nil.TWriteConcern,
+        coll: tuple[db, coll: string] = (nil, nil)) =
   # TODO: If true, propagate the error in 'error'.
   var error: bson.TError
   if not mongo.collection_insert(o.getColl(coll), flags, doc.handle,

@@ -8,7 +8,7 @@ suite "mongo":
     var
       client: db_mongo.TClient
       coll = ("test", "nim_mongo")
-    initClient(client)
+    initClient(client, defaultColl = coll)
 
   teardown:
     when false: # XXX: not accessible here.
@@ -17,11 +17,11 @@ suite "mongo":
     db_mongo.cleanup()
 
   test "insert":
-    client.remove(coll)
-    assert client.count(coll) == 0
+    client.remove()
+    assert client.count == 0
 
     for i in 0 .. 19:
-      client.insert(coll, %{
+      client.insert(%{
           "int32Val": %1i32,
           "int64Val": %2i64,
           "double": %3.3,
@@ -47,7 +47,7 @@ suite "mongo":
         }
       )
 
-    var findResult = toSeq(client.find(coll, limit=10, skip=15))
+    var findResult = toSeq(client.find(limit=10, skip=15))
     assert findResult.len == 5
     for x in findResult:
       var fieldKeys = map(
@@ -126,9 +126,9 @@ suite "mongo":
           assert false, k
 
     test "update":
-      client.update(coll, %{:}, %{"$set": %{"int32Val": %500i32}})
+      client.update(%{:}, %{"$set": %{"int32Val": %500i32}})
       var nUpdated = 0
-      for doc in client.find(coll):
+      for doc in client.find():
         for k, v, iter in doc.fields:
           if k == "int32Val":
             if v.int32Val == 500i32:
@@ -137,8 +137,8 @@ suite "mongo":
       check nUpdated == 1
 
     test "remove":
-      client.remove(coll, flags = {rfRemoveOne})
-      assert client.count(coll) == 19
+      client.remove(flags = {rfRemoveOne})
+      assert client.count == 19
 
-      client.remove(coll)
-      assert client.count(coll) == 0
+      client.remove()
+      assert client.count == 0
