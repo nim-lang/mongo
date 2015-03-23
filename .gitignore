@@ -1,0 +1,6 @@
+**/nimcache
+lib/mongo
+lib/mongo_binding
+lib/bson
+lib/bson_binding
+lib/util
