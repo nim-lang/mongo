@@ -228,29 +228,38 @@ when isMainModule: # TODO: Better structure.
         var client = initClient "mongodb://127.0.0.1"
         var coll = client.getColl("test", "nim_mongo_test")
         var count = 0
+        
         coll.remove()
         assert toSeq(coll.find).len == 0
         assert coll.count == 0
+        
         var b = initBson()
         b.append "int32", 1i32
+        
         coll.insert b
         assert toSeq(coll.find).len == 1
         assert coll.count == 1
+        
         coll.insert b
         assert toSeq(coll.find).len == 2
         assert coll.count == 2
+        
         coll.remove(flags = {rfSingleRemove})
         assert coll.count == 1
+        
         coll.remove(flags = {rfSingleRemove})
         assert coll.count == 0
+        
         coll.insert b
         assert toSeq(coll.find).len == 1
         assert coll.count == 1
+        
         coll.insert b
         coll.insert b
         coll.insert b
         assert toSeq(coll.find).len == 4
         assert coll.count == 4
+        
         b = initBson()
         b.append "int64", 2i64
         coll.update(b)
